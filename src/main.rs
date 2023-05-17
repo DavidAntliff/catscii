@@ -7,8 +7,43 @@ use serde::Deserialize;
 async fn main() {
     // let url = get_cat_image_url().await.unwrap();
     // println!("The image is at {}", url);
-    let image_bytes = get_cat_image_bytes().await.unwrap();
-    println!("{:?}", &image_bytes[..200].hex_dump());
+    // let image_bytes = get_cat_image_bytes().await.unwrap();
+    // println!("{:?}", &image_bytes[..200].hex_dump());
+    let art = get_cat_ascii_art().await.unwrap();
+    println!("{art}");
+}
+
+async fn get_cat_ascii_art() -> color_eyre::Result<String> {
+    #[derive(Deserialize)]
+    struct CatImage {
+        url: String,
+    }
+
+    let api_url = "https://api.thecatapi.com/v1/images/search";
+    let client = reqwest::Client::default();
+
+    let image = client
+        .get(api_url)
+        .send()
+        .await?
+        .error_for_status()?
+        .json::<Vec<CatImage>>()
+        .await?
+        .pop()
+        .ok_or_else(|| color_eyre::eyre::eyre!("The Cat API returned no images"))?;
+
+    let image_bytes = client
+        .get(image.url)
+        .send()
+        .await?
+        .error_for_status()?
+        .bytes()
+        .await?;
+
+    let image = image::load_from_memory(&image_bytes)?;
+    let ascii_art = artem::convert(image, artem::options::OptionBuilder::new().build());
+
+    Ok(ascii_art)
 }
 
 async fn get_cat_image_bytes() -> color_eyre::Result<Vec<u8>> {
