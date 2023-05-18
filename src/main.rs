@@ -24,8 +24,6 @@ async fn main() {
         },
     ));
 
-    panic!("Everything is on fire!");
-
     // Tracing
     let filter = Targets::from_str(std::env::var("RUST_LOG").as_deref().unwrap_or("info"))
         .expect("RUST_LOG should be a valid tracing filter");
@@ -37,7 +35,9 @@ async fn main() {
         .init();
 
     // Axum
-    let app = Router::new().route("/", get(root_get));
+    let app = Router::new()
+        .route("/", get(root_get))
+        .route("/panic", get(|| async { panic!("This is a test panic") }));
 
     let addr = "0.0.0.0:8080".parse().unwrap();
     info!("Listening on {addr}");
