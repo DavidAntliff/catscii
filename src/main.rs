@@ -15,6 +15,18 @@ use tracing_subscriber::{filter::Targets, layer::SubscriberExt, util::Subscriber
 
 #[tokio::main]
 async fn main() {
+    // Sentry
+    let _guard = sentry::init((
+        std::env::var("SENTRY_DSN").expect("$SENTRY_DSN must be set"),
+        sentry::ClientOptions {
+            release: sentry::release_name!(),
+            ..Default::default()
+        },
+    ));
+
+    panic!("Everything is on fire!");
+
+    // Tracing
     let filter = Targets::from_str(std::env::var("RUST_LOG").as_deref().unwrap_or("info"))
         .expect("RUST_LOG should be a valid tracing filter");
     tracing_subscriber::fmt()
@@ -24,6 +36,7 @@ async fn main() {
         .with(filter)
         .init();
 
+    // Axum
     let app = Router::new().route("/", get(root_get));
 
     let addr = "0.0.0.0:8080".parse().unwrap();
