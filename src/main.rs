@@ -24,7 +24,7 @@ async fn root_get() -> Response<BoxBody> {
     match get_cat_ascii_art().await {
         Ok(art) => (
             StatusCode::OK,
-            [(header::CONTENT_TYPE, "text/plain; charset=utf-8")],
+            [(header::CONTENT_TYPE, "text/html; charset=utf-8")],
             art,
         )
             .into_response(),
@@ -66,7 +66,7 @@ async fn get_cat_ascii_art() -> color_eyre::Result<String> {
     let ascii_art = artem::convert(
         image,
         artem::options::OptionBuilder::new()
-            //.target(artem::options::TargetType::HtmlFile(true, true))
+            .target(artem::options::TargetType::HtmlFile(true, true))
             .build(),
     );
 
