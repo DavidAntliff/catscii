@@ -1,0 +1,9 @@
+[registries.Pitchblende]
+index = "ssh://git@ssh.shipyard.rs/Pitchblende/crate-index.git"
+
+[net]
+git-fetch-with-cli = true
+
+[unstable]
+registry-auth = true
+
