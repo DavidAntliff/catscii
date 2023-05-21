@@ -8,6 +8,7 @@ use axum::{
     routing::get,
     Router,
 };
+use locat::Locat;
 use opentelemetry::{
     global,
     trace::{get_active_span, FutureExt, Span, Status, TraceContextExt, Tracer},
@@ -16,13 +17,16 @@ use opentelemetry::{
 use reqwest::header::HeaderMap;
 use reqwest::StatusCode;
 use serde::Deserialize;
+use std::net::IpAddr;
 use std::str::FromStr;
+use std::sync::Arc;
 use tracing::{info, warn, Level};
 use tracing_subscriber::{filter::Targets, layer::SubscriberExt, util::SubscriberInitExt};
 
 #[derive(Clone)]
 struct ServerState {
     client: reqwest::Client,
+    locat: Arc<Locat>,
 }
 
 #[tokio::main]
@@ -57,6 +61,7 @@ async fn main() {
     // Reuse client to avoid TLS-rehandshaking
     let state = ServerState {
         client: Default::default(),
+        locat: Arc::new(Locat::new("todo_geoip_path.mmdb", "todo_analytics.db")),
     };
 
     // Axum
@@ -80,6 +85,14 @@ async fn main() {
         .unwrap();
 }
 
+fn get_client_addr(headers: &HeaderMap) -> Option<IpAddr> {
+    // https://fly.io/docs/reference/runtime-environment/#fly-client-ip
+    let header = headers.get("fly-client-ip")?;
+    let header = header.to_str().ok()?;
+    let addr = header.parse::<IpAddr>().ok()?;
+    Some(addr)
+}
+
 async fn root_get(headers: HeaderMap, State(state): State<ServerState>) -> Response<BoxBody> {
     let tracer = global::tracer("");
     let mut span = tracer.start("root_get");
@@ -90,6 +103,17 @@ async fn root_get(headers: HeaderMap, State(state): State<ServerState>) -> Respo
             .map(|h| h.to_str().unwrap_or_default().to_owned())
             .unwrap_or_default(),
     ));
+
+    if let Some(addr) = get_client_addr(&headers) {
+        //match state.locat.ip_to_iso_code(addr).await {
+        match state.locat.ip_to_iso_code(addr) {
+            Some(country) => {
+                info!("Got request from {country}");
+                span.set_attribute(KeyValue::new("country", country.to_string()));
+            }
+            None => warn!("Could not determine country for IP address"),
+        }
+    }
 
     root_get_inner(state)
         .with_context(Context::current_with_span(span))
