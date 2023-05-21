@@ -1,5 +1,7 @@
 # syntax = docker/dockerfile:1.4
-FROM ubuntu:20.04
+FROM ubuntu:20.04 AS base
+
+FROM base AS builder
 
 RUN set -eux; \
     apt update; \
@@ -30,6 +32,23 @@ RUN --mount=type=cache,target=/root/.rustup \
     --mount=type=cache,target=/app/target \
 		set -eux; \
         cargo build --release; \
-        cp target/release/catscii .
+        #cp target/release/catscii . \
+        objcopy --compress-debug-sections ./target/release/catscii ./catscii
+
+FROM base AS app
+
+SHELL ["/bin/bash", "-c"]
+
+RUN set -eux; \
+    apt update; \
+    apt install -y --no-install-recommends \
+        ca-certificates \
+        ; \
+    apt clean autoclean; \
+    apt autoremove --yes; \
+    rm -rf /var/lib/{apt,dpkg,cache,log}/
+
+WORKDIR /app
+COPY --from=builder /app/catscii .
 
 CMD ["/app/catscii"]
